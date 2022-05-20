@@ -28,6 +28,33 @@ import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+/**
+ * A minigame.
+ * <p/>
+ * <h1>Modules</h1>
+ * Modules can be considered the "backend" of minigames; they handle properties of a game that are required by several
+ * states. They are enabled and disabled as necessary; a given module will not be enabled unless the current state
+ * requires it. Persistent modules are an exception to the latter, and stay enabled for the lifetime of the Game.
+ * <p/>
+ * Refer to {@link GameModule} for more detail.
+ * <p/>
+ * <h1>GameStates</h1>
+ * GameStates are the phases of a game that decide the immediate events and rules. A game may be comprised of multiple
+ * states, each one establishing their own rules and event handlers.
+ * <p/>
+ * Refer to {@link GameState} for more detail.
+ * <p/>
+ * <h1>Setup</h1>
+ * Games can be directly instantiated; they only need an instance of the plugin that owns them. The setup of a game
+ * primarily involves setting the game's initial state and registering the participants of the game if dynamic joining
+ * isn't allowed (see {@link #addPlayer(Player)}). The initial state can be set directly with
+ * {@link #setState(GameState)}.
+ * <p/>
+ * Modules can be requested by {@link GameState}s themselves, but some modules may require instantiation prior to the
+ * start of the game. Said modules can be registered with the game using {@link #addModule(GameModule, boolean)}.
+ * <b>GameModules should not be registered this way during the runtime of the game;</b> see the linked method for
+ * details.
+ */
 public class Game {
 
     private class RegisteredEvent {
@@ -337,8 +364,19 @@ public class Game {
         return this.runnerTask >= 0;
     }
 
+    /**
+     * Adds a {@link GameModule} to this {@link Game}.
+     * <p/>
+     * Calling this method manually during the runtime of a game is not recommended; the module will properly go through
+     * registration, but <b>activation doesn't begin until the transition to the next {@link GameState}.</b> This also
+     * applies to persistent modules.
+     *
+     * @param module the GameModule to register
+     * @param persistent if this module will be persistent
+     * @return if the module was successfully registered
+     */
     public boolean addModule(GameModule module, boolean persistent) {
-        if (modules.containsValue(module.getClass())) return false;
+        if (modules.containsKey(module.getClass())) return false;
         var regmod = new RegisteredModule();
         regmod.module = module;
         regmod.persistent = persistent;
@@ -348,6 +386,12 @@ public class Game {
         return true;
     }
 
+    /**
+     * Retrieve a potentially-registered {@link GameModule}.
+     *
+     * @param type the type of the module to retrieve
+     * @return an Optional with the GameModule, or empty if not present
+     */
     public Optional<GameModule> getModule(Class<? extends GameModule> type) {
         return Optional.ofNullable(this.modules.get(type)).map(it -> it.module);
     }
